@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { collection, addDoc } from 'firebase/firestore';
@@ -30,15 +30,18 @@ const PROPERTY_TYPES = [
   { value: 'shared',    label: 'Shared Room' },
 ];
 
-const CITIES = [
-  'Berlin', 'Munich', 'Hamburg', 'Frankfurt', 'Cologne',
-  'Stuttgart', 'Düsseldorf', 'Leipzig', 'Dresden', 'Nuremberg',
-];
-
 export default function ListPropertyPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [submitted, setSubmitted] = useState(false);
+  const [cities, setCities] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('/api/unistay/cities')
+      .then((r) => r.json())
+      .then((data: string[]) => setCities(data)) // eslint-disable-line react-hooks/set-state-in-effect
+      .catch(() => {});
+  }, []);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -194,7 +197,7 @@ export default function ListPropertyPage() {
                         <FieldLabel>City</FieldLabel>
                         <SoftSelect icon={MapPin} required value={form.city} onChange={(e) => set('city', e.target.value)}>
                           <option value="">Select city...</option>
-                          {CITIES.map((c) => (
+                          {cities.map((c) => (
                             <option key={c} value={c}>{c}</option>
                           ))}
                         </SoftSelect>

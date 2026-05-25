@@ -9,19 +9,6 @@ import { Card } from '@/components/unistay/ui/card';
 import { PriceSlider } from '@/components/unistay/ui/slider';
 import { Combobox } from '@/components/unistay/ui/combobox';
 
-const CITIES = [
-  { value: 'berlin', label: 'Berlin' },
-  { value: 'munich', label: 'Munich' },
-  { value: 'hamburg', label: 'Hamburg' },
-  { value: 'frankfurt', label: 'Frankfurt' },
-  { value: 'cologne', label: 'Cologne' },
-  { value: 'stuttgart', label: 'Stuttgart' },
-  { value: 'dusseldorf', label: 'Düsseldorf' },
-  { value: 'leipzig', label: 'Leipzig' },
-  { value: 'dresden', label: 'Dresden' },
-  { value: 'nuremberg', label: 'Nuremberg' },
-];
-
 const BEDROOM_OPTIONS = ['Any', '1', '2', '3+'];
 
 const FEATURES = [
@@ -36,6 +23,7 @@ export function SearchCard() {
   const router = useRouter();
   const [propertyType, setPropertyType] = useState('');
   const [city, setCity] = useState('');
+  const [cities, setCities] = useState<{ value: string; label: string }[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 3000]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -46,6 +34,13 @@ export function SearchCard() {
 
   useEffect(() => {
     setToday(new Date().toISOString().split('T')[0]); // eslint-disable-line react-hooks/set-state-in-effect
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/unistay/cities')
+      .then((r) => r.json())
+      .then((data: string[]) => setCities(data.map((c) => ({ value: c, label: c })))) // eslint-disable-line react-hooks/set-state-in-effect
+      .catch(() => {});
   }, []);
 
   function toggleFeature(id: string) {
@@ -78,7 +73,7 @@ export function SearchCard() {
             Location
           </label>
           <Combobox
-            options={CITIES}
+            options={cities}
             value={city}
             onChange={setCity}
             placeholder="Select or search city..."
