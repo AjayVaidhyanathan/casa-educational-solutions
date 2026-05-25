@@ -4,13 +4,17 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X, ChevronDown, Building, GraduationCap as Degree, ShieldCheck, Home } from "lucide-react";
+import { Menu, X, ChevronDown, Building, GraduationCap as Degree, ShieldCheck, Home, LogOut } from "lucide-react";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/unistay/firebase";
+import { useAuth } from "@/lib/unistay/auth-context";
 import styles from "./Navbar.module.css";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const pathname = usePathname();
+  const { user } = useAuth();
 
   // Close menus on path changes — intentional sync of URL state to local UI
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -39,6 +43,8 @@ export default function Navbar() {
       setDropdownOpen(!dropdownOpen);
     }
   };
+
+  const displayName = user?.displayName || user?.email?.split("@")[0] || null;
 
   return (
     <nav className={styles.navbar}>
@@ -94,10 +100,32 @@ export default function Navbar() {
               </li>
             </ul>
           </li>
+          {pathname.startsWith('/unistay') && (
+            <li className={styles.navBtn}>
+              <Link href="/unistay/list-property" className={styles.listBtn}>
+                List Property
+              </Link>
+            </li>
+          )}
           <li className={styles.navBtn}>
-            <Link href="/login" className={styles.button}>
-              Login
-            </Link>
+            {user ? (
+              <div className={styles.userMenu}>
+                <Link href="/unistay/profile" className={styles.userName}>
+                  {displayName}
+                </Link>
+                <button
+                  onClick={() => signOut(auth)}
+                  className={styles.logoutBtn}
+                  aria-label="Sign out"
+                >
+                  <LogOut size={15} />
+                </button>
+              </div>
+            ) : (
+              <Link href="/unistay/auth" className={styles.button}>
+                Login
+              </Link>
+            )}
           </li>
         </ul>
 

@@ -127,6 +127,27 @@
   transform: translateX(4px);
 }
 
+/* List property link (shown on unistay pages) */
+.listBtn {
+  display: inline-block;
+  padding: 8px 18px;
+  border: 1.5px solid var(--border-light);
+  border-radius: 30px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+
+.listBtn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 /* Navbar action button */
 .navBtn {
   margin-left: 12px;
@@ -152,6 +173,40 @@
   color: var(--color-white);
   box-shadow: 0 6px 16px rgba(100, 57, 255, 0.25);
   transform: translateY(-1px);
+}
+
+/* Logged-in user display */
+.userMenu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.userName {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-primary);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logoutBtn {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.2s ease;
+}
+
+.logoutBtn:hover {
+  color: var(--color-primary);
 }
 
 /* Mobile toggle button */

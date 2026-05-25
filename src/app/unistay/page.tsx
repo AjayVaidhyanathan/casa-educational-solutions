@@ -21,7 +21,7 @@ export default function UniStay() {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     try {
       const response = await fetch("https://formspree.io/f/xldonynj", {
@@ -67,9 +67,7 @@ export default function UniStay() {
             Book trusted rooms directly with UniStay and secure safe, comfortable, and well-located accommodations before you arrive.
           </p>
           <a
-            href="https://api.whatsapp.com/send/?phone=4917686347176&text=Hello%20CASA,%20I%27d%20like%20to%20enquire%20about%20UniStay%20housing!"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/unistay/browse"
             className={styles.heroBtn}
           >
             Enquire For Rooms
