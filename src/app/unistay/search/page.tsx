@@ -10,7 +10,7 @@ import {
 import { PropertyCard } from '@/components/unistay/PropertyCard';
 import { FilterSidebar } from '@/components/unistay/FilterSidebar';
 import { Breadcrumbs } from '@/components/unistay/ui/breadcrumbs';
-import { Combobox } from '@/components/unistay/ui/combobox';
+import { CitySearchInput } from '@/components/unistay/ui/city-search-input';
 import { useFirestoreListings } from '@/lib/unistay/useFirestoreListings';
 import type { ExternalProperty, FilterValues, Property } from '@/lib/unistay/types';
 
@@ -44,7 +44,6 @@ const SORT_OPTIONS = [
   { value: 'newest',     label: 'Available soonest' },
 ];
 
-const POPULAR_CITIES = ['Berlin', 'Munich', 'Hamburg', 'Frankfurt', 'Cologne'];
 
 type SourceTab  = 'all' | 'casa' | 'housinganywhere';
 type ViewMode   = 'list' | 'map';
@@ -125,7 +124,7 @@ function SearchContent() {
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [haListings,  setHaListings]  = useState<ExternalProperty[]>([]);
   const [haLoading,   setHaLoading]   = useState(false);
-  const [cities,      setCities]      = useState<{ value: string; label: string }[]>([]);
+  const [cities,      setCities]      = useState<string[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { listings: firestoreListings, loading: listingsLoading } = useFirestoreListings();
@@ -151,7 +150,7 @@ function SearchContent() {
   useEffect(() => {
     fetch('/api/unistay/cities')
       .then((r) => r.json())
-      .then((data: string[]) => setCities(data.map((c) => ({ value: c, label: c })))) // eslint-disable-line react-hooks/set-state-in-effect
+      .then((data: string[]) => setCities(data)) // eslint-disable-line react-hooks/set-state-in-effect
       .catch(() => {});
   }, []);
 
@@ -232,7 +231,7 @@ function SearchContent() {
             <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-5 space-y-4 text-left mb-6">
               <div>
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5 block">City</label>
-                <Combobox options={cities} value={filters.city} onChange={handleCitySelect} placeholder="Select or search city…" />
+                <CitySearchInput cities={cities} value={filters.city} onChange={handleCitySelect} placeholder="Search city…" />
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px bg-gray-100" />
@@ -254,14 +253,6 @@ function SearchContent() {
               </div>
             </div>
 
-            <p className="text-xs text-gray-400 mb-3 uppercase tracking-widest">Popular cities</p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {POPULAR_CITIES.map((c) => (
-                <button key={c} onClick={() => handleCitySelect(c)} className="px-4 py-2 rounded-full border border-gray-200 bg-white text-sm text-gray-700 hover:border-blue-400 hover:text-blue-600 transition-colors">
-                  {c}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
       </div>

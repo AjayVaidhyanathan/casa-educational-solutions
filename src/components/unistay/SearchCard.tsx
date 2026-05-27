@@ -7,7 +7,7 @@ import { Button } from '@/components/unistay/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/unistay/ui/select';
 import { Card } from '@/components/unistay/ui/card';
 import { PriceSlider } from '@/components/unistay/ui/slider';
-import { Combobox } from '@/components/unistay/ui/combobox';
+import { CitySearchInput } from '@/components/unistay/ui/city-search-input';
 
 const BEDROOM_OPTIONS = ['Any', '1', '2', '3+'];
 
@@ -35,7 +35,7 @@ export function SearchCard() {
   const router = useRouter();
   const [propertyType, setPropertyType] = useState('');
   const [city, setCity] = useState('');
-  const [cities, setCities] = useState<{ value: string; label: string }[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 3000]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -53,7 +53,7 @@ export function SearchCard() {
   useEffect(() => {
     fetch('/api/unistay/cities')
       .then((r) => r.json())
-      .then((data: string[]) => setCities(data.map((c) => ({ value: c, label: c })))) // eslint-disable-line react-hooks/set-state-in-effect
+      .then((data: string[]) => setCities(data)) // eslint-disable-line react-hooks/set-state-in-effect
       .catch(() => {});
   }, []);
 
@@ -86,11 +86,11 @@ export function SearchCard() {
           <label className="text-xs font-medium text-gray-500 mb-1.5 block uppercase tracking-wide">
             Location
           </label>
-          <Combobox
-            options={cities}
+          <CitySearchInput
+            cities={cities}
             value={city}
             onChange={setCity}
-            placeholder="Select or search city..."
+            placeholder="Search city…"
           />
         </div>
 
