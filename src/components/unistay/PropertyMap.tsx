@@ -38,100 +38,125 @@ const CITY_COORDS: Record<string, [number, number]> = {
   Kassel:     [51.312,  9.479],
 };
 
-function makePinIcon(count: number, selected: boolean) {
-  const size = Math.min(52, 34 + Math.floor(Math.log(count + 1)) * 4);
+// Deterministic per-property offset so pins in the same city spread out
+function cityJitter(id: string): [number, number] {
+  let h = 5381;
+  for (const c of id) h = ((h << 5) + h + c.charCodeAt(0)) & 0xffffffff;
+  const lat = ((h & 0xffff) / 65535 - 0.5) * 0.04;
+  const lng = (((h >> 16) & 0xffff) / 65535 - 0.5) * 0.06;
+  return [lat, lng];
+}
+
+function getCoords(p: Property): [number, number] | null {
+  if (p.lat && p.lng) return [p.lat, p.lng];
+  const base = CITY_COORDS[p.city];
+  if (!base) return null;
+  const [dLat, dLng] = cityJitter(p.id);
+  return [base[0] + dLat, base[1] + dLng];
+}
+
+function makePricePin(price: number, selected: boolean) {
+  const label = price >= 1000 ? `€${(price / 1000).toFixed(1)}k` : `€${price}`;
   const bg = selected ? '#2563eb' : '#0f172a';
-  const ring = selected ? '#bfdbfe' : 'white';
+  const border = selected ? '#93c5fd' : 'white';
+  const scale = selected ? 'scale(1.18)' : 'scale(1)';
   return L.divIcon({
     className: '',
     html: `<div style="
-      width:${size}px;height:${size}px;
       background:${bg};color:white;
-      border-radius:50%;
-      display:flex;align-items:center;justify-content:center;
-      font-size:${size < 40 ? 11 : 13}px;font-weight:700;
-      border:3px solid ${ring};
-      box-shadow:0 2px 10px rgba(0,0,0,0.3);
+      border:2px solid ${border};
+      border-radius:999px;
+      padding:3px 8px;
+      font-size:11px;font-weight:700;
+      white-space:nowrap;
+      box-shadow:0 2px 8px rgba(0,0,0,0.28);
       cursor:pointer;
-      transition:transform 0.15s;
-    ">${count < 1000 ? count : '999+'}</div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+      transform:${scale};
+      transition:transform 0.12s;
+    ">${label}</div>`,
+    iconSize: [60, 26],
+    iconAnchor: [30, 13],
   });
 }
 
-// Inner component — re-centers map when selected city changes
-function MapController({ city }: { city: string }) {
+type Pin = Property & { coords: [number, number] };
+
+function BoundsController({ pins }: { pins: Pin[] }) {
   const map = useMap();
   useEffect(() => {
-    const coords = city && CITY_COORDS[city] ? CITY_COORDS[city] : [51.165, 10.451] as [number, number];
-    const zoom = city ? 11 : 6;
-    map.flyTo(coords, zoom, { animate: true, duration: 0.8 });
-  }, [city, map]);
+    if (pins.length === 0) return;
+    if (pins.length === 1) { map.setView(pins[0].coords, 14); return; }
+    const bounds = L.latLngBounds(pins.map((p) => p.coords));
+    map.fitBounds(bounds, { padding: [48, 48], maxZoom: 14, animate: true });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pins.map((p) => p.id).join(',')]);
   return null;
 }
 
 interface PropertyMapProps {
   properties: Property[];
-  selectedCity: string;
-  onCitySelect: (city: string) => void;
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
 }
 
-export default function PropertyMap({ properties, selectedCity, onCitySelect }: PropertyMapProps) {
-  const cityGroups = useMemo(() => {
-    const counts: Record<string, number> = {};
+export default function PropertyMap({ properties, selectedId, onSelect }: PropertyMapProps) {
+  const pins: Pin[] = useMemo(() => {
+    const result: Pin[] = [];
     for (const p of properties) {
-      if (p.city) counts[p.city] = (counts[p.city] ?? 0) + 1;
+      const coords = getCoords(p);
+      if (coords) result.push({ ...p, coords });
+      if (result.length >= 150) break;
     }
-    return Object.entries(counts).filter(([city]) => city in CITY_COORDS);
+    return result;
   }, [properties]);
-
-  const initialCenter: [number, number] =
-    selectedCity && CITY_COORDS[selectedCity]
-      ? CITY_COORDS[selectedCity]
-      : [51.165, 10.451];
 
   return (
     <MapContainer
-      center={initialCenter}
-      zoom={selectedCity ? 11 : 6}
-      className="w-full h-full rounded-xl"
+      center={[51.165, 10.451]}
+      zoom={6}
+      className="w-full h-full"
       style={{ height: '100%', width: '100%' }}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <MapController city={selectedCity} />
+      <BoundsController pins={pins} />
 
-      {cityGroups.length === 0 && (
-        // No listings in known cities — just show the map with no pins
-        <></>
-      )}
-
-      {cityGroups.map(([city, count]) => (
+      {pins.map((p) => (
         <Marker
-          key={city}
-          position={CITY_COORDS[city]}
-          icon={makePinIcon(count, city === selectedCity)}
-          eventHandlers={{ click: () => onCitySelect(city) }}
+          key={p.id}
+          position={p.coords}
+          icon={makePricePin(p.price, p.id === selectedId)}
+          eventHandlers={{ click: () => onSelect?.(p.id) }}
+          zIndexOffset={p.id === selectedId ? 1000 : 0}
         >
           <Popup>
-            <div style={{ textAlign: 'center', padding: '4px 2px' }}>
-              <p style={{ fontWeight: 700, marginBottom: 4 }}>{city}</p>
-              <p style={{ color: '#6b7280', fontSize: 13, marginBottom: 8 }}>
-                {count} {count === 1 ? 'property' : 'properties'}
+            <div style={{ minWidth: 160, fontFamily: 'inherit' }}>
+              <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{p.title}</p>
+              <p style={{ color: '#6b7280', fontSize: 11, marginBottom: 6 }}>
+                {p.address ? `${p.address}, ` : ''}{p.city}
               </p>
-              <button
-                onClick={() => onCitySelect(city)}
-                style={{
-                  background: '#2563eb', color: 'white', border: 'none',
-                  padding: '5px 14px', borderRadius: 20, fontSize: 12,
-                  fontWeight: 600, cursor: 'pointer',
-                }}
-              >
-                View listings
-              </button>
+              <p style={{ fontWeight: 700, color: '#2563eb', fontSize: 15, marginBottom: 8 }}>
+                €{p.price}<span style={{ fontWeight: 400, color: '#9ca3af', fontSize: 11 }}>/mo</span>
+              </p>
+              {p.source === 'housinganywhere' ? (
+                <a
+                  href={(p as { externalUrl: string }).externalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display:'block', background:'#2563eb', color:'white', textDecoration:'none', textAlign:'center', padding:'5px 12px', borderRadius:20, fontSize:11, fontWeight:600 }}
+                >
+                  View on HousingAnywhere
+                </a>
+              ) : (
+                <a
+                  href={`/unistay/properties/${p.id}`}
+                  style={{ display:'block', background:'#2563eb', color:'white', textDecoration:'none', textAlign:'center', padding:'5px 12px', borderRadius:20, fontSize:11, fontWeight:600 }}
+                >
+                  View listing
+                </a>
+              )}
             </div>
           </Popup>
         </Marker>

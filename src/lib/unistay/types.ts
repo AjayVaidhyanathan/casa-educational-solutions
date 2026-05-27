@@ -16,6 +16,8 @@ export interface CasaProperty {
   features: string[];
   description: string;
   featured?: boolean;
+  lat?: number;
+  lng?: number;
 }
 
 export interface ExternalProperty {
@@ -32,6 +34,8 @@ export interface ExternalProperty {
   image: string;
   features: string[];
   externalUrl: string;
+  lat?: number;
+  lng?: number;
 }
 
 export type Property = CasaProperty | ExternalProperty;

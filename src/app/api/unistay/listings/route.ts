@@ -52,6 +52,9 @@ function transform(l: any): ExternalProperty | null {
     l.images?.[0]?.originalLink ??
     '';
 
+  const lat = typeof l.location?.geoPoint?.lat === 'number' ? l.location.geoPoint.lat : undefined;
+  const lng = typeof l.location?.geoPoint?.lng === 'number' ? l.location.geoPoint.lng : undefined;
+
   return {
     source: 'housinganywhere',
     id: `ha-${l.id}`,
@@ -66,6 +69,8 @@ function transform(l: any): ExternalProperty | null {
     image: img,
     features: mapFeatures(fac),
     externalUrl: l.originalLink,
+    lat,
+    lng,
   };
 }
 
