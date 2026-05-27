@@ -10,7 +10,6 @@ import {
 import { PropertyCard } from '@/components/unistay/PropertyCard';
 import { FilterSidebar } from '@/components/unistay/FilterSidebar';
 import { Breadcrumbs } from '@/components/unistay/ui/breadcrumbs';
-import { CitySearchInput } from '@/components/unistay/ui/city-search-input';
 import { useFirestoreListings } from '@/lib/unistay/useFirestoreListings';
 import type { ExternalProperty, FilterValues, Property } from '@/lib/unistay/types';
 
@@ -214,52 +213,6 @@ function SearchContent() {
     </div>
   );
 
-  /* ── Empty / pre-search state ────────────────────────────────────────────── */
-  if (!hasSearch) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="container mx-auto px-4 pt-8 pb-6">{nav}</div>
-
-        <div className="flex items-center justify-center px-4 pb-20" style={{ minHeight: 'calc(100vh - 180px)' }}>
-          <div className="w-full max-w-md text-center">
-            <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
-              <MapPin className="h-8 w-8 text-blue-600" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Find your student home</h1>
-            <p className="text-gray-500 text-sm mb-8">Search thousands of properties across Germany.</p>
-
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-5 space-y-4 text-left mb-6">
-              <div>
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5 block">City</label>
-                <CitySearchInput cities={cities} value={filters.city} onChange={handleCitySelect} placeholder="Search city…" />
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-gray-100" />
-                <span className="text-xs text-gray-300 uppercase tracking-widest">or</span>
-                <div className="flex-1 h-px bg-gray-100" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5 block">Keyword search</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={filters.search}
-                    onChange={(e) => handleSearchInput(e.target.value)}
-                    placeholder="e.g. furnished studio near university…"
-                    className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-4 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Results state ───────────────────────────────────────────────────────── */
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-6">
