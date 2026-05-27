@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { SlidersHorizontal, X, ChevronDown, Search } from 'lucide-react';
+import { SlidersHorizontal, X, ChevronDown, Search, Calendar } from 'lucide-react';
 import { PropertyCard } from '@/components/unistay/PropertyCard';
 import { FilterSidebar } from '@/components/unistay/FilterSidebar';
 import { Breadcrumbs } from '@/components/unistay/ui/breadcrumbs';
@@ -106,17 +106,35 @@ function countActiveFilters(filters: FilterValues): number {
   return n;
 }
 
+type OpenPill = 'dates' | 'price' | 'type' | 'all' | null;
+
+const TYPE_OPTIONS = [
+  { value: '',          label: 'Any type' },
+  { value: 'studio',    label: 'Studio' },
+  { value: 'apartment', label: 'Apartment' },
+  { value: 'room',      label: 'Private Room' },
+  { value: 'shared',    label: 'Shared Room' },
+];
+
+const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtS(d: string) {
+  if (!d) return '';
+  const [,m,dy] = d.split('-');
+  return `${parseInt(dy)} ${MO[parseInt(m)-1]}`;
+}
+
 /* ── Main component ───────────────────────────────────────────────────────── */
 function SearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const [sortBy,      setSortBy]      = useState('featured');
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [selectedId,  setSelectedId]  = useState<string | null>(null);
-  const [haListings,  setHaListings]  = useState<ExternalProperty[]>([]);
-  const [haLoading,   setHaLoading]   = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [sortBy,     setSortBy]     = useState('featured');
+  const [openPill,   setOpenPill]   = useState<OpenPill>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [haListings, setHaListings] = useState<ExternalProperty[]>([]);
+  const [haLoading,  setHaLoading]  = useState(false);
+  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pillBarRef   = useRef<HTMLDivElement>(null);
 
   const { listings: firestoreListings, loading: listingsLoading } = useFirestoreListings();
 
@@ -173,10 +191,38 @@ function SearchContent() {
 
   function handleFilterChange(f: FilterValues) { setFilters(f); syncUrl(f); fetchHA(f); }
   function handleSearchInput(v: string) { const n = { ...filters, search: v }; setFilters(n); syncUrl(n); fetchHA(n); }
-  function handleClear() { setFilters(DEFAULT_FILTERS); setHaListings([]); router.replace('/unistay/search', { scroll: false }); }
+  function handleClear() { setFilters(DEFAULT_FILTERS); setHaListings([]); setOpenPill(null); router.replace('/unistay/search', { scroll: false }); }
 
   const sorted  = sortProperties(applyFilters([...firestoreListings, ...haListings], filters), sortBy);
   const loading = listingsLoading || haLoading;
+
+  // Close pill dropdowns on outside click
+  useEffect(() => {
+    if (!openPill) return;
+    function handler(e: MouseEvent) {
+      if (pillBarRef.current && !pillBarRef.current.contains(e.target as Node)) setOpenPill(null);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openPill]);
+
+  // Pill label helpers
+  const dateLabel = filters.dateFrom
+    ? `${fmtS(filters.dateFrom)}${filters.dateTo ? ` – ${fmtS(filters.dateTo)}` : ''}`
+    : 'Dates';
+  const priceLabel = (filters.minPrice > 0 || filters.maxPrice < 3000)
+    ? `€${filters.minPrice}–€${filters.maxPrice}`
+    : 'Price';
+  const typeLabel = filters.type
+    ? (TYPE_OPTIONS.find((o) => o.value === filters.type)?.label ?? 'Type')
+    : 'Property type';
+
+  const pill = (active: boolean) =>
+    `flex items-center gap-1.5 h-9 px-3.5 rounded-full border text-sm font-medium transition-colors shrink-0 whitespace-nowrap ${
+      active ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400 shadow-sm'
+    }`;
+
+  const dropdownBase = 'absolute top-full mt-2 left-0 z-50 bg-white border border-gray-200 rounded-2xl shadow-xl';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -190,57 +236,148 @@ function SearchContent() {
           <Breadcrumbs crumbs={[{ label: 'Home', href: '/' }, { label: 'UniStay', href: '/unistay/browse' }, { label: 'Search results' }]} className="" />
         </div>
 
-        {/* Search bar row */}
-        <div className="flex items-center gap-2 mb-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+        {/* ── Pill filter bar ── */}
+        <div ref={pillBarRef} className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+
+          {/* Search input styled as pill */}
+          <div className="relative shrink-0 min-w-[160px] max-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
             <input
               type="text"
               value={filters.search}
               onChange={(e) => handleSearchInput(e.target.value)}
-              placeholder="Search city, neighbourhood, or keyword…"
-              className="w-full h-11 rounded-xl border border-gray-200 bg-white pl-10 pr-9 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              placeholder="City or keyword…"
+              className="w-full h-9 rounded-full border border-gray-200 bg-white pl-8 pr-7 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm"
             />
             {filters.search && (
-              <button onClick={() => handleSearchInput('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <X className="h-3.5 w-3.5" />
+              <button onClick={() => handleSearchInput('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X className="h-3 w-3" />
               </button>
             )}
           </div>
 
-          <button
-            onClick={() => setFiltersOpen((o) => !o)}
-            className={`flex items-center gap-2 text-sm font-medium px-3 py-2.5 rounded-xl border transition-colors shrink-0 ${
-              filtersOpen ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200 hover:border-blue-400 shadow-sm'
-            }`}
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            <span className="hidden sm:inline">Filters</span>
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-200 shrink-0" />
+
+          {/* Dates pill */}
+          <div className="relative">
+            <button onClick={() => setOpenPill(openPill === 'dates' ? null : 'dates')} className={pill(openPill === 'dates' || !!(filters.dateFrom || filters.dateTo))}>
+              <Calendar className="h-3.5 w-3.5" />
+              {dateLabel}
+              <ChevronDown className="h-3 w-3 opacity-60" />
+            </button>
+            {openPill === 'dates' && (
+              <div className={`${dropdownBase} p-4 min-w-[240px]`}>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Move-in</p>
+                <input type="date" value={filters.dateFrom}
+                  onChange={(e) => handleFilterChange({ ...filters, dateFrom: e.target.value })}
+                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm text-gray-700 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Move-out</p>
+                <input type="date" value={filters.dateTo} min={filters.dateFrom}
+                  onChange={(e) => handleFilterChange({ ...filters, dateTo: e.target.value })}
+                  className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm text-gray-700 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                <div className="flex justify-between border-t pt-3">
+                  <button onClick={() => handleFilterChange({ ...filters, dateFrom: '', dateTo: '' })} className="text-sm text-gray-500 hover:text-gray-700">Clear</button>
+                  <button onClick={() => setOpenPill(null)} className="text-sm font-semibold text-blue-600 hover:text-blue-700">Done</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Price pill */}
+          <div className="relative">
+            <button onClick={() => setOpenPill(openPill === 'price' ? null : 'price')} className={pill(openPill === 'price' || filters.minPrice > 0 || filters.maxPrice < 3000)}>
+              {priceLabel}
+              <ChevronDown className="h-3 w-3 opacity-60" />
+            </button>
+            {openPill === 'price' && (
+              <div className={`${dropdownBase} p-4 min-w-[220px]`}>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">Monthly rent</p>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-400 mb-1">Min</p>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">€</span>
+                      <input type="number" min={0} max={filters.maxPrice} value={filters.minPrice || ''}
+                        onChange={(e) => handleFilterChange({ ...filters, minPrice: Number(e.target.value) || 0 })}
+                        placeholder="0"
+                        className="w-full h-9 rounded-lg border border-gray-200 pl-6 pr-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                    </div>
+                  </div>
+                  <span className="text-gray-300 text-lg mt-4">–</span>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-400 mb-1">Max</p>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">€</span>
+                      <input type="number" min={filters.minPrice} value={filters.maxPrice < 3000 ? filters.maxPrice : ''}
+                        onChange={(e) => handleFilterChange({ ...filters, maxPrice: Number(e.target.value) || 3000 })}
+                        placeholder="Any"
+                        className="w-full h-9 rounded-lg border border-gray-200 pl-6 pr-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-between border-t pt-3">
+                  <button onClick={() => handleFilterChange({ ...filters, minPrice: 0, maxPrice: 3000 })} className="text-sm text-gray-500 hover:text-gray-700">Clear</button>
+                  <button onClick={() => setOpenPill(null)} className="text-sm font-semibold text-blue-600 hover:text-blue-700">Apply</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Property type pill */}
+          <div className="relative">
+            <button onClick={() => setOpenPill(openPill === 'type' ? null : 'type')} className={pill(openPill === 'type' || !!filters.type)}>
+              {typeLabel}
+              <ChevronDown className="h-3 w-3 opacity-60" />
+            </button>
+            {openPill === 'type' && (
+              <div className={`${dropdownBase} py-2 min-w-[170px]`}>
+                {TYPE_OPTIONS.map((opt) => (
+                  <button key={opt.value}
+                    onClick={() => { handleFilterChange({ ...filters, type: opt.value }); setOpenPill(null); }}
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${filters.type === opt.value ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50 text-gray-700'}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* All filters */}
+          <button onClick={() => setOpenPill(openPill === 'all' ? null : 'all')} className={pill(openPill === 'all')}>
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            All filters
             {activeCount > 0 && (
-              <span className={`text-xs rounded-full w-4 h-4 flex items-center justify-center ${filtersOpen ? 'bg-white text-gray-900' : 'bg-blue-600 text-white'}`}>
+              <span className={`text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center ${openPill === 'all' ? 'bg-white text-gray-900' : 'bg-gray-900 text-white'}`}>
                 {activeCount}
               </span>
             )}
           </button>
 
-          <div className="relative hidden sm:block shrink-0">
+          {/* Sort */}
+          <div className="relative ml-auto shrink-0">
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
-              className="appearance-none pl-3 pr-8 py-2.5 text-sm border border-gray-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              className="h-9 appearance-none rounded-full border border-gray-200 bg-white pl-3.5 pr-8 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
             >
               {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
           </div>
         </div>
 
-        {/* Filter dropdown panel */}
-        {filtersOpen && (
+        {/* All-filters panel */}
+        {openPill === 'all' && (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-4">
             <div className="p-5 max-h-72 overflow-y-auto">
               <FilterSidebar
                 filters={filters}
                 onChange={handleFilterChange}
-                onClear={() => { handleClear(); setFiltersOpen(false); }}
+                onClear={() => { handleClear(); setOpenPill(null); }}
                 activeCount={activeCount}
               />
             </div>
@@ -255,49 +392,47 @@ function SearchContent() {
             <span className="text-sm text-gray-600">
               <span className="font-semibold text-gray-900">{sorted.length}</span>{' '}
               {sorted.length === 1 ? 'property' : 'properties'}
+              {filters.search && <span className="text-gray-400"> in <span className="text-gray-600 font-medium">{filters.search}</span></span>}
             </span>
           )}
           {haLoading && <span className="text-xs text-blue-500">Fetching partner listings…</span>}
         </div>
 
-        {/* Split view: list (left) + map (right, sticky) */}
+        {/* Split view: list (left, 58%) + map (right, sticky) */}
         <div className="flex flex-col lg:flex-row lg:items-start gap-3 lg:gap-4">
 
-          {/* List column */}
-          <div className="order-2 lg:order-1 w-full lg:w-[44%] space-y-3">
-            {loading && sorted.length === 0
-              ? [1, 2, 3, 4].map((i) => (
-                  <div key={i} className="bg-white rounded-xl border border-gray-200 h-52 animate-pulse" />
-                ))
-              : sorted.length === 0
-              ? (
-                <div className="bg-white rounded-xl border border-gray-200 p-10 text-center">
-                  <p className="text-gray-500 mb-2">No properties match your search</p>
-                  <p className="text-gray-400 text-sm mb-4">Try a different city or adjust the filters</p>
-                  <button onClick={handleClear} className="text-blue-600 text-sm hover:underline">Clear and start over</button>
-                </div>
-              )
-              : sorted.map((p) => (
-                <div
-                  key={p.id}
-                  onMouseEnter={() => setSelectedId(p.id)}
-                  onMouseLeave={() => setSelectedId(null)}
-                  className={`rounded-xl transition-all duration-150 ${selectedId === p.id ? 'ring-2 ring-blue-500 shadow-lg' : ''}`}
-                >
-                  <PropertyCard property={p} />
-                </div>
-              ))
-            }
+          {/* List — 2-column grid */}
+          <div className="order-2 lg:order-1 w-full lg:w-[58%]">
+            {loading && sorted.length === 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[1,2,3,4].map((i) => <div key={i} className="bg-white rounded-2xl border border-gray-200 h-56 animate-pulse" />)}
+              </div>
+            ) : sorted.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center">
+                <p className="text-gray-500 mb-2">No properties match your search</p>
+                <p className="text-gray-400 text-sm mb-4">Try a different city or adjust the filters</p>
+                <button onClick={handleClear} className="text-blue-600 text-sm hover:underline">Clear and start over</button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {sorted.map((p) => (
+                  <div
+                    key={p.id}
+                    onMouseEnter={() => setSelectedId(p.id)}
+                    onMouseLeave={() => setSelectedId(null)}
+                    className={`rounded-2xl transition-all duration-150 ${selectedId === p.id ? 'ring-2 ring-blue-500 shadow-lg' : ''}`}
+                  >
+                    <PropertyCard property={p} />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Map column — mobile: 300px above list; desktop: sticky, tall */}
+          {/* Map — mobile: 300px above list; desktop: sticky */}
           <div className="order-1 lg:order-2 lg:flex-1 rounded-xl overflow-hidden border border-gray-200 shadow-sm h-[300px] lg:h-[calc(100vh-130px)] lg:sticky lg:top-4">
             {!loading ? (
-              <PropertyMap
-                properties={sorted}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-              />
+              <PropertyMap properties={sorted} selectedId={selectedId} onSelect={setSelectedId} />
             ) : (
               <div className="w-full h-full bg-gray-100 animate-pulse" />
             )}

@@ -2,24 +2,15 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, BedDouble, Ruler, Calendar, ExternalLink, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/unistay/ui/button';
-import { Card } from '@/components/unistay/ui/card';
+import { BedDouble, Ruler } from 'lucide-react';
 import type { Property } from '@/lib/unistay/types';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-function formatAvailableDate(dateStr: string) {
-  const [year, month, day] = dateStr.split('-');
-  return `${parseInt(day)} ${MONTHS[parseInt(month) - 1]} ${year}`;
+function fmtDate(dateStr: string) {
+  if (!dateStr) return '';
+  const [, month, day] = dateStr.split('-');
+  return `${parseInt(day)} ${MONTHS[parseInt(month) - 1]}`;
 }
-
-const FEATURE_LABELS: Record<string, string> = {
-  furnished: 'Furnished',
-  wifi: 'WiFi',
-  bills: 'Bills incl.',
-  parking: 'Parking',
-  balcony: 'Balcony',
-};
 
 interface PropertyCardProps {
   property: Property;
@@ -28,92 +19,89 @@ interface PropertyCardProps {
 export function PropertyCard({ property }: PropertyCardProps) {
   const image = property.source === 'casa' ? property.images[0] : property.image;
   const isCasa = property.source === 'casa';
+  const billsIncluded = property.features.includes('bills');
+  const availNow = !property.availableFrom || new Date(property.availableFrom) <= new Date();
 
-  return (
-    <Card className="overflow-hidden flex flex-col hover:shadow-md transition-shadow">
+  const inner = (
+    <div className="bg-white rounded-2xl overflow-hidden border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer group h-full flex flex-col">
       {/* Image */}
-      <div className="relative h-52">
-        <Image src={image} alt={property.title} fill className="object-cover" />
-
-        {/* Source badge */}
-        <div className="absolute top-3 left-3">
-          {isCasa ? (
-            <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 bg-white rounded-full" />
-              Casa Managed
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 bg-gray-800 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
-              HousingAnywhere
-            </span>
-          )}
-        </div>
-
-        {/* Price */}
-        <div className="absolute bottom-3 right-3 bg-white rounded-lg px-3 py-1.5 shadow">
-          <span className="text-lg font-bold text-gray-900">€{property.price.toLocaleString()}</span>
-          <span className="text-xs text-gray-500">/mo</span>
-        </div>
+      <div className="relative h-44 overflow-hidden shrink-0">
+        {image ? (
+          <Image
+            src={image}
+            alt={property.title}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+            <span className="text-gray-400 text-xs">No image</span>
+          </div>
+        )}
+        {isCasa && (
+          <span className="absolute top-3 left-3 bg-blue-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide shadow">
+            Casa
+          </span>
+        )}
+        <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-black/20 to-transparent" />
       </div>
 
       {/* Content */}
-      <div className="p-4 flex flex-col flex-1">
-        <h3 className="font-semibold text-gray-900 mb-1 leading-snug">{property.title}</h3>
-
-        <p className="text-sm text-gray-500 flex items-center gap-1 mb-3">
-          <MapPin className="h-3.5 w-3.5 shrink-0" />
-          {property.address}
+      <div className="p-3.5 flex flex-col flex-1">
+        <h3 className="font-semibold text-sm text-gray-900 leading-snug line-clamp-1 mb-0.5">
+          {property.title}
+        </h3>
+        <p className="text-xs text-gray-400 mb-2.5 line-clamp-1">
+          {[property.address, property.city].filter(Boolean).join(', ')}
         </p>
 
         {/* Stats */}
-        <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+        <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+          {property.size > 0 && (
+            <span className="flex items-center gap-1">
+              <Ruler className="h-3 w-3 shrink-0" />
+              {property.size} m²
+            </span>
+          )}
           <span className="flex items-center gap-1">
-            <BedDouble className="h-4 w-4 text-gray-400" />
-            {property.bedrooms} bed
-          </span>
-          <span className="flex items-center gap-1">
-            <Ruler className="h-4 w-4 text-gray-400" />
-            {property.size}m²
-          </span>
-          <span className="flex items-center gap-1">
-            <Calendar className="h-4 w-4 text-gray-400" />
-            {formatAvailableDate(property.availableFrom)}
+            <BedDouble className="h-3 w-3 shrink-0" />
+            {property.bedrooms === 0 ? 'Studio' : `${property.bedrooms} bed`}
           </span>
         </div>
 
-        {/* Feature tags */}
-        {property.features.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {property.features.slice(0, 3).map((f) => (
-              <span key={f} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                {FEATURE_LABELS[f] ?? f}
-              </span>
-            ))}
-            {property.features.length > 3 && (
-              <span className="text-xs text-gray-400">+{property.features.length - 3} more</span>
+        {/* Price + availability */}
+        <div className="mt-auto flex items-end justify-between gap-2">
+          <div>
+            <div className="flex items-baseline gap-0.5">
+              <span className="font-bold text-base text-gray-900">€{property.price.toLocaleString()}</span>
+              <span className="text-xs text-gray-400">/month</span>
+            </div>
+            {billsIncluded && (
+              <p className="text-[10px] text-gray-400 mt-0.5">incl. utilities</p>
             )}
           </div>
-        )}
-
-        {/* CTA */}
-        <div className="mt-auto">
-          {isCasa ? (
-            <Link href={`/unistay/properties/${property.id}`} className="block">
-              <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                View Details
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </Link>
-          ) : (
-            <a href={property.externalUrl} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" className="w-full border-gray-300 text-gray-700 hover:border-blue-500 hover:text-blue-600">
-                View on HousingAnywhere
-                <ExternalLink className="h-4 w-4 ml-2" />
-              </Button>
-            </a>
-          )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className={`w-1.5 h-1.5 rounded-full ${availNow ? 'bg-green-500' : 'bg-gray-300'}`} />
+            <span className="text-xs text-gray-600">
+              {availNow ? 'Available now' : `From ${fmtDate(property.availableFrom)}`}
+            </span>
+          </div>
         </div>
       </div>
-    </Card>
+    </div>
+  );
+
+  if (isCasa) {
+    return <Link href={`/unistay/properties/${property.id}`} className="block h-full">{inner}</Link>;
+  }
+  return (
+    <a
+      href={(property as { externalUrl: string }).externalUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block h-full"
+    >
+      {inner}
+    </a>
   );
 }
