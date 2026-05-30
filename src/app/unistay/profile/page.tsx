@@ -7,21 +7,15 @@ import { signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/unistay/firebase';
 import { useAuth } from '@/lib/unistay/auth-context';
+import { DOC_TYPES, DocKey, DocRecord, DocsMap, uploadDocument, formatBytes } from '@/lib/unistay/documents';
 import {
   User, Mail, Phone, Globe, GraduationCap, Calendar,
   Camera, CheckCircle2, LogOut, Settings, Heart,
-  Edit3, X, ArrowRight, FileText, Search,
+  Edit3, X, ArrowRight, FileText, Search, Upload, Loader2, ExternalLink,
 } from 'lucide-react';
 
 import { FieldLabel, SoftInput, SoftTextarea, SoftSelect, PrimaryBtn, OutlineBtn, FormSection } from '@/components/unistay/ui/form-elements';
 import { Breadcrumbs } from '@/components/unistay/ui/breadcrumbs';
-
-const DOCS_STATUS = [
-  { label: 'Passport / ID',           uploaded: true },
-  { label: 'Student ID',              uploaded: true },
-  { label: 'Proof of Enrolment',      uploaded: false },
-  { label: 'Proof of Income / Funds', uploaded: false },
-];
 
 const NATIONALITIES = [
   'British', 'German', 'French', 'Spanish', 'Italian', 'Indian', 'Chinese',
@@ -35,12 +29,16 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const docInputRefs = useRef<Partial<Record<DocKey, HTMLInputElement | null>>>({});
 
   const [profile, setProfile] = useState({
     name: '', email: '', phone: '', nationality: '',
     university: '', program: '', moveInDate: '', bio: '',
   });
   const [draft, setDraft] = useState(profile);
+  const [documents, setDocuments] = useState<DocsMap>({});
+  const [docProgress, setDocProgress] = useState<Partial<Record<DocKey, number>>>({});
+  const [docError, setDocError] = useState<Partial<Record<DocKey, string>>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -49,12 +47,40 @@ export default function ProfilePage() {
     setDraft((p) => ({ ...p, ...base })); // eslint-disable-line react-hooks/set-state-in-effect
     getDoc(doc(db, 'users', user.uid)).then((snap) => {
       if (snap.exists()) {
-        const data = snap.data() as Partial<typeof profile>;
-        setProfile((p) => ({ ...p, ...data }));
-        setDraft((p) => ({ ...p, ...data }));
+        const data = snap.data() as Partial<typeof profile> & { documents?: DocsMap };
+        const { documents: docs, ...profileData } = data;
+        setProfile((p) => ({ ...p, ...profileData }));
+        setDraft((p) => ({ ...p, ...profileData }));
+        if (docs) setDocuments(docs); // eslint-disable-line react-hooks/set-state-in-effect
+      } else {
+        // Google sign-in users land here without a Firestore doc — create one now
+        setDoc(doc(db, 'users', user.uid), {
+          name:              user.displayName ?? '',
+          email:             user.email ?? '',
+          role:              'user',
+          documents:         {},
+          createdAt:         new Date().toISOString(),
+          applicationStatus: 'pending',
+        });
       }
     });
   }, [user]);
+
+  async function handleDocUpload(docKey: DocKey, file: File) {
+    if (!user) return;
+    setDocError((p) => ({ ...p, [docKey]: undefined }));
+    setDocProgress((p) => ({ ...p, [docKey]: 0 }));
+    try {
+      const record = await uploadDocument(user.uid, docKey, file, (pct) =>
+        setDocProgress((p) => ({ ...p, [docKey]: pct })),
+      );
+      setDocuments((p) => ({ ...p, [docKey]: record }));
+    } catch {
+      setDocError((p) => ({ ...p, [docKey]: 'Upload failed. Please try again.' }));
+    } finally {
+      setDocProgress((p) => { const n = { ...p }; delete n[docKey]; return n; });
+    }
+  }
 
   function startEditing() {
     setDraft(profile);
@@ -79,10 +105,10 @@ export default function ProfilePage() {
 
   async function handleSignOut() {
     await signOut(auth);
-    router.push('/unistay/auth');
+    router.replace('/unistay/register');
   }
 
-  const docsUploaded = DOCS_STATUS.filter((d) => d.uploaded).length;
+  const docsUploaded = DOC_TYPES.filter(({ key }) => !!documents[key]).length;
   const current = editing ? draft : profile;
   const profileComplete = Math.round(
     ([current.name, current.email, current.phone, current.nationality,
@@ -269,38 +295,72 @@ export default function ProfilePage() {
 
               {/* Documents */}
               <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                <div className="flex items-center justify-between mb-5">
-                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-                    Documents
-                  </span>
-                  <Link href="/unistay/dashboard" className="text-xs text-blue-600 hover:underline font-medium">
-                    Manage
-                  </Link>
-                </div>
-                <div className="space-y-3">
-                  {DOCS_STATUS.map(({ label, uploaded }) => (
-                    <div key={label} className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${uploaded ? 'bg-green-100' : 'bg-gray-100'}`}>
-                        {uploaded
-                          ? <CheckCircle2 className="h-3 w-3 text-green-600" />
-                          : <span className="w-1.5 h-1.5 bg-gray-300 rounded-full block" />}
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest block mb-4">Documents</span>
+                <div className="space-y-2">
+                  {DOC_TYPES.map(({ key, label, hint }) => {
+                    const record = documents[key];
+                    const progress = docProgress[key];
+                    const err = docError[key];
+                    const uploading = progress !== undefined;
+                    return (
+                      <div key={key} className={`rounded-xl border px-3 py-2.5 transition-colors ${record ? 'border-green-200 bg-green-50' : 'border-gray-100 bg-gray-50'}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${record ? 'bg-green-100' : 'bg-white border border-gray-200'}`}>
+                              {record ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> : <FileText className="h-3 w-3 text-gray-300" />}
+                            </div>
+                            <div className="min-w-0">
+                              <p className={`text-xs font-medium truncate ${record ? 'text-green-800' : 'text-gray-600'}`}>{label}</p>
+                              {record ? (
+                                <p className="text-[10px] text-green-600 truncate">{record.name}</p>
+                              ) : (
+                                <p className="text-[10px] text-gray-400">{hint}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {record && (
+                              <a href={record.url} target="_blank" rel="noopener noreferrer"
+                                className="p-1 text-gray-400 hover:text-blue-600 transition-colors">
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                            {uploading ? (
+                              <div className="flex items-center gap-1 text-[10px] text-blue-600">
+                                <Loader2 className="h-3 w-3 animate-spin" />{progress}%
+                              </div>
+                            ) : (
+                              <button type="button" onClick={() => docInputRefs.current[key]?.click()}
+                                className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-md bg-white border border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors">
+                                <Upload className="h-2.5 w-2.5" />
+                                {record ? 'Replace' : 'Upload'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {uploading && (
+                          <div className="mt-2 h-0.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                          </div>
+                        )}
+                        {err && <p className="text-[10px] text-red-500 mt-1">{err}</p>}
+                        <input
+                          ref={(el) => { docInputRefs.current[key] = el; }}
+                          type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleDocUpload(key as DocKey, f); e.target.value = ''; }}
+                        />
                       </div>
-                      <span className={`text-sm ${uploaded ? 'text-gray-700' : 'text-gray-300'}`}>
-                        {label}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-50">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-gray-400">{docsUploaded} of {DOCS_STATUS.length} uploaded</span>
-                    <span className="text-xs font-bold text-blue-600">{Math.round((docsUploaded / DOCS_STATUS.length) * 100)}%</span>
+                    <span className="text-xs text-gray-400">{docsUploaded} of {DOC_TYPES.length} uploaded</span>
+                    <span className="text-xs font-bold text-blue-600">{Math.round((docsUploaded / DOC_TYPES.length) * 100)}%</span>
                   </div>
                   <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-600 rounded-full"
-                      style={{ width: `${(docsUploaded / DOCS_STATUS.length) * 100}%` }}
-                    />
+                    <div className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                      style={{ width: `${(docsUploaded / DOC_TYPES.length) * 100}%` }} />
                   </div>
                 </div>
               </div>

@@ -38,9 +38,13 @@ export function PropertyCard({ property }: PropertyCardProps) {
             <span className="text-gray-400 text-xs">No image</span>
           </div>
         )}
-        {isCasa && (
+        {isCasa ? (
           <span className="absolute top-3 left-3 bg-blue-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide shadow">
             Casa
+          </span>
+        ) : (
+          <span className="absolute top-3 left-3 bg-gray-700/80 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide shadow backdrop-blur-sm">
+            Partner
           </span>
         )}
         <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-black/20 to-transparent" />
@@ -80,9 +84,9 @@ export function PropertyCard({ property }: PropertyCardProps) {
               <p className="text-[10px] text-gray-400 mt-0.5">incl. utilities</p>
             )}
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className={`w-1.5 h-1.5 rounded-full ${availNow ? 'bg-green-500' : 'bg-gray-300'}`} />
-            <span className="text-xs text-gray-600">
+          <div className="flex items-center gap-1.5 shrink-0" suppressHydrationWarning>
+            <span className={`w-1.5 h-1.5 rounded-full ${availNow ? 'bg-green-500' : 'bg-gray-300'}`} suppressHydrationWarning />
+            <span className="text-xs text-gray-600" suppressHydrationWarning>
               {availNow ? 'Available now' : `From ${fmtDate(property.availableFrom)}`}
             </span>
           </div>

@@ -1,6 +1,28 @@
 import type { CasaProperty, ExternalProperty } from './types';
 
 export const casaProperties: CasaProperty[] = [
+  // ── Showcase listing — exercises every detail-page UI element ──────────────
+  {
+    source: 'casa', id: 'showcase', title: 'Premium 2-Bed Apartment – Prenzlauer Berg', type: 'apartment',
+    city: 'Berlin', address: 'Kastanienallee 82, Prenzlauer Berg, 10435 Berlin', price: 1350,
+    bedrooms: 2, size: 68, availableFrom: '2026-08-01',
+    images: [
+      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800',
+      'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800',
+      'https://images.unsplash.com/photo-1540518614846-7eded433c457?w=800',
+      'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=800',
+      'https://images.unsplash.com/photo-1502005097973-6a7082348e28?w=800',
+      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800',
+    ],
+    features: ['furnished', 'wifi', 'bills', 'parking', 'balcony'],
+    description: 'Discover this beautifully finished 2-bedroom apartment on one of Prenzlauer Berg\'s most sought-after streets. The apartment occupies the third floor of a restored Altbau building with original 3.2-metre ceilings, wide herringbone parquet floors, and large south-facing windows that flood the living space with natural light throughout the day. The open-plan kitchen is fully equipped with a dishwasher, induction hob, oven, and Nespresso machine. Both bedrooms comfortably fit a double bed, and the master has direct access to the 8 m² private balcony — ideal for morning coffee above the tree-lined boulevard. The bathroom features a walk-in rain shower and underfloor heating. All utilities (electricity, gas, water, internet) are included in the rent, and a dedicated underground parking space is allocated to the apartment. Kastanienallee tram stop is 90 seconds on foot, and Eberswalder Str. U-Bahn (U2) is a 5-minute walk.',
+    featured: true,
+    lat: 52.5393,
+    lng: 13.4135,
+    coldRent: 1050,
+    utilityEstimate: 300,
+  },
+  // ───────────────────────────────────────────────────────────────────────────
   {
     source: 'casa', id: 'c1', title: 'Modern Studio in Mitte', type: 'studio',
     city: 'Berlin', address: 'Rosenthaler Str. 12, Mitte', price: 750,
@@ -11,7 +33,7 @@ export const casaProperties: CasaProperty[] = [
     ],
     features: ['furnished', 'wifi', 'bills'],
     description: 'Bright studio in the heart of Berlin Mitte. Fully furnished with high-speed WiFi and all bills included. Walking distance to U-Bahn and local amenities.',
-    featured: true,
+    featured: true, lat: 52.5244, lng: 13.4015,
   },
   {
     source: 'casa', id: 'c2', title: 'Spacious 2-Room Flat – Kreuzberg', type: 'apartment',
@@ -23,7 +45,7 @@ export const casaProperties: CasaProperty[] = [
     ],
     features: ['furnished', 'balcony', 'wifi'],
     description: 'Charming 2-room flat in vibrant Kreuzberg. Features a private balcony, fully furnished, and located 5 minutes from Mehringdamm U-Bahn.',
-    featured: true,
+    featured: true, lat: 52.4887, lng: 13.3906,
   },
   {
     source: 'casa', id: 'c3', title: 'Cosy Room in Shared Flat – Prenzlauer Berg', type: 'room',
@@ -32,6 +54,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=800'],
     features: ['furnished', 'wifi', 'bills'],
     description: 'Private room in a friendly 3-person shared flat. All utilities included, furnished, in one of Berlin\'s most popular neighbourhoods.',
+    lat: 52.5435, lng: 13.4213,
   },
   {
     source: 'casa', id: 'c4', title: 'Studio near TU Munich', type: 'studio',
@@ -40,7 +63,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=800'],
     features: ['furnished', 'wifi', 'parking'],
     description: 'Compact studio 5 minutes walk from TU Munich campus. Includes parking space and high-speed internet.',
-    featured: true,
+    featured: true, lat: 48.1478, lng: 11.5669,
   },
   {
     source: 'casa', id: 'c5', title: '3-Room Apartment – Schwabing', type: 'apartment',
@@ -49,6 +72,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800'],
     features: ['furnished', 'balcony', 'parking', 'bills'],
     description: 'Elegant 3-room apartment in prestigious Schwabing. Large balcony, underground parking, and all bills included.',
+    lat: 48.1626, lng: 11.5820,
   },
   {
     source: 'casa', id: 'c6', title: 'Private Room – Maxvorstadt', type: 'room',
@@ -57,6 +81,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=800'],
     features: ['furnished', 'wifi', 'bills'],
     description: 'Sunny private room near LMU and art museums. Bills and WiFi included in a quiet, well-maintained building.',
+    lat: 48.1508, lng: 11.5730,
   },
   {
     source: 'casa', id: 'c7', title: 'Modern Studio – Altona', type: 'studio',
@@ -65,7 +90,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
     features: ['furnished', 'wifi', 'balcony'],
     description: 'Stylish studio in Altona with a private balcony. Recently renovated, 3 min from Altona S-Bahn station.',
-    featured: true,
+    featured: true, lat: 53.5534, lng: 9.9375,
   },
   {
     source: 'casa', id: 'c8', title: '2-Room Flat – Eimsbüttel', type: 'apartment',
@@ -74,6 +99,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'],
     features: ['furnished', 'wifi', 'bills'],
     description: 'Light-filled 2-room flat in the popular Eimsbüttel neighbourhood. All bills included, 10 min to city centre.',
+    lat: 53.5701, lng: 9.9651,
   },
   {
     source: 'casa', id: 'c9', title: 'Room in Student House – Barmbek', type: 'shared',
@@ -82,6 +108,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=800'],
     features: ['furnished', 'wifi', 'bills'],
     description: 'Affordable shared room in a 5-person student house. Communal kitchen and living area, all bills included.',
+    lat: 53.5889, lng: 10.0358,
   },
   {
     source: 'casa', id: 'c10', title: 'Studio – Sachsenhausen', type: 'studio',
@@ -90,6 +117,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=800'],
     features: ['furnished', 'wifi'],
     description: 'Neat studio in Frankfurt Sachsenhausen, close to the Apple Juice quarter and 15 min from Goethe University.',
+    lat: 50.0984, lng: 8.6838,
   },
   {
     source: 'casa', id: 'c11', title: '2-Room Apartment – Bornheim', type: 'apartment',
@@ -98,7 +126,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800'],
     features: ['furnished', 'balcony', 'wifi', 'parking'],
     description: 'Well-appointed 2-room apartment in lively Bornheim. Balcony, parking space, and close to tram lines.',
-    featured: true,
+    featured: true, lat: 50.1189, lng: 8.7098,
   },
   {
     source: 'casa', id: 'c12', title: 'Private Room – Nordend', type: 'room',
@@ -107,6 +135,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=800'],
     features: ['furnished', 'wifi', 'bills'],
     description: 'Comfortable private room in a shared flat in upmarket Nordend. All bills covered, friendly flatmates.',
+    lat: 50.1235, lng: 8.6948,
   },
   {
     source: 'casa', id: 'c13', title: 'Studio – Ehrenfeld', type: 'studio',
@@ -115,6 +144,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
     features: ['furnished', 'wifi'],
     description: 'Trendy studio in Cologne\'s creative Ehrenfeld district. Close to bars, restaurants, and the S-Bahn.',
+    lat: 50.9527, lng: 6.9058,
   },
   {
     source: 'casa', id: 'c14', title: '3-Room Flat – Südstadt', type: 'apartment',
@@ -123,7 +153,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800'],
     features: ['furnished', 'balcony', 'wifi', 'bills', 'parking'],
     description: 'Spacious 3-room flat with balcony in Cologne Südstadt. Everything included — perfect for 2-3 students sharing.',
-    featured: true,
+    featured: true, lat: 50.9204, lng: 6.9452,
   },
   {
     source: 'casa', id: 'c15', title: 'Room – Nippes', type: 'room',
@@ -132,6 +162,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=800'],
     features: ['furnished', 'wifi', 'bills'],
     description: 'Bright private room in up-and-coming Nippes neighbourhood. Tram stop 2 minutes away.',
+    lat: 50.9676, lng: 6.9446,
   },
   {
     source: 'casa', id: 'c16', title: 'Studio – Stuttgart Mitte', type: 'studio',
@@ -140,6 +171,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=800'],
     features: ['furnished', 'wifi', 'parking'],
     description: 'Central studio in Stuttgart with parking space. 10 minutes to Stuttgart University by U-Bahn.',
+    lat: 48.7706, lng: 9.1724,
   },
   {
     source: 'casa', id: 'c17', title: '2-Room Flat – Stuttgart West', type: 'apartment',
@@ -148,6 +180,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'],
     features: ['furnished', 'wifi', 'balcony'],
     description: '2-room flat with lovely balcony in Stuttgart West. Great transport links to the university and city centre.',
+    lat: 48.7762, lng: 9.1604,
   },
   {
     source: 'casa', id: 'c18', title: 'Private Room – Düsseldorf Bilk', type: 'room',
@@ -156,6 +189,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=800'],
     features: ['furnished', 'wifi', 'bills'],
     description: 'Sunny private room near HHU Düsseldorf campus. All utilities included, 5 min to the metro.',
+    lat: 51.2104, lng: 6.7792,
   },
   {
     source: 'casa', id: 'c19', title: 'Studio – Düsseldorf Flingern', type: 'studio',
@@ -164,7 +198,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
     features: ['furnished', 'wifi'],
     description: 'Stylish studio in Flingern, Düsseldorf\'s hipster neighbourhood. Newly renovated with modern finishes.',
-    featured: true,
+    featured: true, lat: 51.2272, lng: 6.8098,
   },
   {
     source: 'casa', id: 'c20', title: '2-Room Flat – Düsseldorf Pempelfort', type: 'apartment',
@@ -173,6 +207,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800'],
     features: ['furnished', 'balcony', 'wifi', 'bills'],
     description: 'Elegant 2-room flat with balcony close to the Rhine. All bills included, quiet residential street.',
+    lat: 51.2404, lng: 6.7949,
   },
   {
     source: 'casa', id: 'c21', title: 'Studio – Leipzig Südvorstadt', type: 'studio',
@@ -181,7 +216,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=800'],
     features: ['furnished', 'wifi', 'bills'],
     description: 'Affordable studio in Leipzig\'s student heartland. Bills included, surrounded by cafés and bars.',
-    featured: true,
+    featured: true, lat: 51.3272, lng: 12.3750,
   },
   {
     source: 'casa', id: 'c22', title: '2-Room Flat – Leipzig Gohlis', type: 'apartment',
@@ -190,6 +225,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'],
     features: ['furnished', 'wifi', 'balcony'],
     description: 'Charming 2-room flat in quiet Gohlis. Balcony, furnished, close to Clara-Zetkin-Park and tram stops.',
+    lat: 51.3597, lng: 12.3648,
   },
   {
     source: 'casa', id: 'c23', title: 'Room – Leipzig Connewitz', type: 'room',
@@ -198,6 +234,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=800'],
     features: ['furnished', 'wifi', 'bills'],
     description: 'Budget-friendly room in lively Connewitz. Perfect for students who want to be in the middle of the action.',
+    lat: 51.3154, lng: 12.3703,
   },
   {
     source: 'casa', id: 'c24', title: 'Studio – Dresden Neustadt', type: 'studio',
@@ -206,6 +243,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
     features: ['furnished', 'wifi'],
     description: 'Cosy studio in Dresden\'s artistic Neustadt district. 5 min from TU Dresden and the city\'s best nightlife.',
+    lat: 51.0658, lng: 13.7413,
   },
   {
     source: 'casa', id: 'c25', title: '2-Room Flat – Dresden Striesen', type: 'apartment',
@@ -214,7 +252,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800'],
     features: ['furnished', 'wifi', 'balcony', 'parking'],
     description: '2-room flat in calm Striesen with balcony and parking. 15 min tram ride to TU Dresden.',
-    featured: true,
+    featured: true, lat: 51.0447, lng: 13.7846,
   },
   {
     source: 'casa', id: 'c26', title: 'Studio – Nuremberg Gostenhof', type: 'studio',
@@ -223,6 +261,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=800'],
     features: ['furnished', 'wifi', 'bills'],
     description: 'Studio in Nuremberg\'s up-and-coming Gostenhof area. All bills included, 10 min to FAU campus.',
+    lat: 49.4542, lng: 11.0625,
   },
   {
     source: 'casa', id: 'c27', title: '3-Room Flat – Nuremberg Südstadt', type: 'apartment',
@@ -231,6 +270,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800'],
     features: ['furnished', 'balcony', 'wifi', 'parking', 'bills'],
     description: 'Large 3-room flat with balcony and parking near Südstadtpark. Ideal for students sharing.',
+    lat: 49.4387, lng: 11.0814,
   },
   {
     source: 'casa', id: 'c28', title: 'Room – Nuremberg Langwasser', type: 'room',
@@ -239,6 +279,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=800'],
     features: ['furnished', 'wifi', 'bills'],
     description: 'Affordable private room with all bills included. Direct metro to FAU and city centre.',
+    lat: 49.4129, lng: 11.0895,
   },
   {
     source: 'casa', id: 'c29', title: 'Studio – Berlin Friedrichshain', type: 'studio',
@@ -247,7 +288,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
     features: ['furnished', 'wifi', 'balcony'],
     description: 'Vibrant studio near East Side Gallery. Private balcony, fully furnished, 2 min from Warschauer Str. station.',
-    featured: true,
+    featured: true, lat: 52.5078, lng: 13.4527,
   },
   {
     source: 'casa', id: 'c30', title: 'Apartment – Munich Neuhausen', type: 'apartment',
@@ -256,6 +297,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800'],
     features: ['furnished', 'wifi', 'parking', 'bills'],
     description: 'Premium 2-room apartment near Nymphenburg Palace. Parking, all bills, and close to LMU via tram.',
+    lat: 48.1458, lng: 11.5432,
   },
   {
     source: 'casa', id: 'c31', title: 'Shared Room – Berlin Neukölln', type: 'shared',
@@ -264,6 +306,7 @@ export const casaProperties: CasaProperty[] = [
     images: ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=800'],
     features: ['furnished', 'wifi', 'bills'],
     description: 'Budget shared room in vibrant Neukölln. All bills included, international community of students.',
+    lat: 52.4799, lng: 13.4359,
   },
 ];
 

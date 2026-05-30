@@ -26,10 +26,10 @@ function docToCasaProperty(id: string, data: Record<string, unknown>): CasaPrope
   };
 }
 
-// Fetches all approved listings from Firestore for the search/browse page.
 export function useFirestoreListings() {
   const [listings, setListings] = useState<CasaProperty[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(
@@ -43,27 +43,41 @@ export function useFirestoreListings() {
         );
         setListings(props);
       })
+      .catch((err) => {
+        const code: string = err?.code ?? '';
+        if (code.includes('permission') || code.includes('unauthorized')) {
+          setError('permission-denied');
+        } else {
+          setError(code || err?.message || 'unknown');
+        }
+        console.error('[useFirestoreListings]', err);
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  return { listings, loading };
+  return { listings, loading, error };
 }
 
-// Fetches a single property by ID from Firestore.
 export function useFirestoreProperty(id: string) {
   const [property, setProperty] = useState<CasaProperty | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) { setLoading(false); return; } // eslint-disable-line react-hooks/set-state-in-effect
+    if (!id) { setLoading(false); return; }
     getDoc(doc(db, 'listings', id))
       .then((snap) => {
         if (snap.exists()) {
           setProperty(docToCasaProperty(snap.id, snap.data() as Record<string, unknown>));
         }
       })
+      .catch((err) => {
+        const code: string = err?.code ?? '';
+        setError(code || err?.message || 'unknown');
+        console.error('[useFirestoreProperty]', err);
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
-  return { property, loading };
+  return { property, loading, error };
 }

@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster';
 import type { Property } from '@/lib/unistay/types';
 
 /* ── City fallback coordinates ──────────────────────────────────────────── */
@@ -46,63 +48,15 @@ function cityJitter(id: string): [number, number] {
   return [((h & 0xffff) / 65535 - 0.5) * 0.015, (((h >> 16) & 0xffff) / 65535 - 0.5) * 0.022];
 }
 
-/* ── Nominatim geocoder (module-level cache + queue, 1 req/s) ─────────── */
-const GEO_CACHE = new Map<string, [number, number] | null>();
-const GEO_QUEUE: Array<{
-  key: string;
-  query: string;
-  resolve: (r: [number, number] | null) => void;
-}> = [];
-let GEO_ACTIVE = false;
-
-async function drainQueue() {
-  if (GEO_ACTIVE || GEO_QUEUE.length === 0) return;
-  GEO_ACTIVE = true;
-  while (GEO_QUEUE.length > 0) {
-    const item = GEO_QUEUE.shift()!;
-    if (GEO_CACHE.has(item.key)) {
-      item.resolve(GEO_CACHE.get(item.key) ?? null);
-      continue;
-    }
-    try {
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(item.query)}&format=json&limit=1&countrycodes=de`;
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'CasaSolutions/1.0 (student-housing-search)' },
-      });
-      const data: Array<{ lat: string; lon: string }> = await res.json();
-      const coords = data[0] ? ([parseFloat(data[0].lat), parseFloat(data[0].lon)] as [number, number]) : null;
-      GEO_CACHE.set(item.key, coords);
-      item.resolve(coords);
-    } catch {
-      GEO_CACHE.set(item.key, null);
-      item.resolve(null);
-    }
-    // Nominatim rate limit: 1 request / second
-    await new Promise((r) => setTimeout(r, 1100));
-  }
-  GEO_ACTIVE = false;
-}
-
-function geocode(address: string, city: string): Promise<[number, number] | null> {
-  const query = [address, city, 'Germany'].filter(Boolean).join(', ');
-  const key = query.toLowerCase();
-  if (GEO_CACHE.has(key)) return Promise.resolve(GEO_CACHE.get(key) ?? null);
-  return new Promise((resolve) => {
-    GEO_QUEUE.push({ key, query, resolve });
-    drainQueue();
-  });
-}
-
 /* ── Pin icon ─────────────────────────────────────────────────────────── */
-function makePricePin(price: number, selected: boolean, geocoded: boolean) {
+function makePricePin(price: number, selected: boolean) {
   const label = price >= 1000 ? `€${(price / 1000).toFixed(1)}k` : `€${price}`;
-  const bg     = selected  ? '#2563eb' : '#0f172a';
-  const border = selected  ? '#93c5fd' : 'white';
-  const opacity = geocoded ? '1' : '0.7';
+  const bg     = selected ? '#2563eb' : '#0f172a';
+  const border = selected ? '#93c5fd' : 'white';
   return L.divIcon({
     className: '',
     html: `<div style="
-      background:${bg};color:white;opacity:${opacity};
+      background:${bg};color:white;
       border:2px solid ${border};border-radius:999px;
       padding:3px 8px;font-size:11px;font-weight:700;
       white-space:nowrap;cursor:pointer;
@@ -139,40 +93,13 @@ interface PropertyMapProps {
 }
 
 export default function PropertyMap({ properties, selectedId, onSelect }: PropertyMapProps) {
-  // Geocoded coords arrive asynchronously — stored per property id
-  const [geocodedCoords, setGeocodedCoords] = useState<Record<string, Coords>>({});
-
-  // Kick off geocoding for properties without known coordinates (cap at 25)
-  useEffect(() => {
-    let cancelled = false;
-    const toGeocode = properties
-      .filter((p) => !p.lat && !p.lng && p.address && p.address.trim().length > 2)
-      .slice(0, 25);
-
-    for (const p of toGeocode) {
-      geocode(p.address, p.city).then((coords) => {
-        if (!cancelled && coords) {
-          setGeocodedCoords((prev) => ({ ...prev, [p.id]: coords })); // eslint-disable-line react-hooks/set-state-in-effect
-        }
-      });
-    }
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [properties.map((p) => p.id).join(',')]);
-
-  // Build final pin list: exact coord > geocoded > city+jitter
+  // Build pin list: baked lat/lng (all static properties) → city+jitter fallback
   const pins = useMemo(() => {
-    const result: Array<{ p: Property; coords: Coords; geocoded: boolean }> = [];
+    const result: Array<{ p: Property; coords: Coords }> = [];
     for (const p of properties) {
       let coords: Coords | null = null;
-      let geocoded = false;
-
       if (p.lat && p.lng) {
         coords = [p.lat, p.lng];
-        geocoded = true;
-      } else if (geocodedCoords[p.id]) {
-        coords = geocodedCoords[p.id];
-        geocoded = true;
       } else {
         const base = CITY_COORDS[p.city];
         if (base) {
@@ -180,12 +107,11 @@ export default function PropertyMap({ properties, selectedId, onSelect }: Proper
           coords = [base[0] + dLat, base[1] + dLng];
         }
       }
-
-      if (coords) result.push({ p, coords, geocoded });
+      if (coords) result.push({ p, coords });
       if (result.length >= 150) break;
     }
     return result;
-  }, [properties, geocodedCoords]);
+  }, [properties]);
 
   return (
     <MapContainer
@@ -200,39 +126,54 @@ export default function PropertyMap({ properties, selectedId, onSelect }: Proper
       />
       <BoundsController pins={pins.map((pin) => pin.coords)} />
 
-      {pins.map(({ p, coords, geocoded }) => (
-        <Marker
-          key={p.id}
-          position={coords}
-          icon={makePricePin(p.price, p.id === selectedId, geocoded)}
-          eventHandlers={{ click: () => onSelect?.(p.id) }}
-          zIndexOffset={p.id === selectedId ? 1000 : 0}
-        >
-          <Popup>
-            <div style={{ minWidth: 160, fontFamily: 'inherit' }}>
-              <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{p.title}</p>
-              <p style={{ color: '#6b7280', fontSize: 11, marginBottom: 6 }}>
-                {p.address ? `${p.address}, ` : ''}{p.city}
-              </p>
-              <p style={{ fontWeight: 700, color: '#2563eb', fontSize: 15, marginBottom: 8 }}>
-                €{p.price}
-                <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: 11 }}>/mo</span>
-              </p>
-              {p.source === 'housinganywhere' ? (
-                <a href={(p as { externalUrl: string }).externalUrl} target="_blank" rel="noopener noreferrer"
-                  style={{ display:'block', background:'#2563eb', color:'white', textDecoration:'none', textAlign:'center', padding:'5px 12px', borderRadius:20, fontSize:11, fontWeight:600 }}>
-                  View on HousingAnywhere
-                </a>
-              ) : (
-                <a href={`/unistay/properties/${p.id}`}
-                  style={{ display:'block', background:'#2563eb', color:'white', textDecoration:'none', textAlign:'center', padding:'5px 12px', borderRadius:20, fontSize:11, fontWeight:600 }}>
-                  View listing
-                </a>
-              )}
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+      <MarkerClusterGroup
+        chunkedLoading
+        maxClusterRadius={50}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        iconCreateFunction={(cluster: any) => {
+          const n = cluster.getChildCount();
+          return L.divIcon({
+            className: '',
+            html: `<div style="background:#0f172a;color:white;border:2px solid white;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.28)">${n} places</div>`,
+            iconSize: [80, 26],
+            iconAnchor: [40, 13],
+          });
+        }}
+      >
+        {pins.map(({ p, coords }) => (
+          <Marker
+            key={p.id}
+            position={coords}
+            icon={makePricePin(p.price, p.id === selectedId)}
+            eventHandlers={{ click: () => onSelect?.(p.id) }}
+            zIndexOffset={p.id === selectedId ? 1000 : 0}
+          >
+            <Popup>
+              <div style={{ minWidth: 160, fontFamily: 'inherit' }}>
+                <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{p.title}</p>
+                <p style={{ color: '#6b7280', fontSize: 11, marginBottom: 6 }}>
+                  {p.address ? `${p.address}, ` : ''}{p.city}
+                </p>
+                <p style={{ fontWeight: 700, color: '#2563eb', fontSize: 15, marginBottom: 8 }}>
+                  €{p.price}
+                  <span style={{ fontWeight: 400, color: '#9ca3af', fontSize: 11 }}>/mo</span>
+                </p>
+                {p.source === 'housinganywhere' ? (
+                  <a href={(p as { externalUrl: string }).externalUrl} target="_blank" rel="noopener noreferrer"
+                    style={{ display:'block', background:'#2563eb', color:'white', textDecoration:'none', textAlign:'center', padding:'5px 12px', borderRadius:20, fontSize:11, fontWeight:600 }}>
+                    View on HousingAnywhere
+                  </a>
+                ) : (
+                  <a href={`/unistay/properties/${p.id}`}
+                    style={{ display:'block', background:'#2563eb', color:'white', textDecoration:'none', textAlign:'center', padding:'5px 12px', borderRadius:20, fontSize:11, fontWeight:600 }}>
+                    View listing
+                  </a>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MarkerClusterGroup>
     </MapContainer>
   );
 }

@@ -1,22 +1,38 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
+
+const PropertyDetailMap = dynamic(() => import('@/components/unistay/PropertyDetailMap'), { ssr: false });
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/unistay/firebase';
 import { useAuth } from '@/lib/unistay/auth-context';
 import {
   MapPin, BedDouble, Ruler, Calendar, ChevronLeft, ChevronRight,
-  Heart, Share2, Wifi, Car, Sofa, Zap, TreePine, CheckCircle2,
-  Mail, Phone, Send, Lock, Loader2,
+  Heart, Share2, Wifi, Car, Sofa, Zap, TreePine, CheckCircle2, Mail, Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/unistay/ui/button';
 import { Card } from '@/components/unistay/ui/card';
 import { casaProperties } from '@/lib/unistay/properties';
 import { useFirestoreProperty } from '@/lib/unistay/useFirestoreListings';
-import { FieldLabel, SoftInput, SoftTextarea, PrimaryBtn } from '@/components/unistay/ui/form-elements';
 import { Breadcrumbs } from '@/components/unistay/ui/breadcrumbs';
 import type { CasaProperty } from '@/lib/unistay/types';
+
+// ── Configure Casa contact details ────────────────────────────────────────────
+const CASA_WHATSAPP = '4915XXXXXXXXX'; // Replace with your number, no + or spaces
+const CASA_EMAIL    = 'contact@casasolutions.com';
+// ─────────────────────────────────────────────────────────────────────────────
+
+function WhatsAppIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden="true">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </svg>
+  );
+}
 
 const FEATURE_ICONS: Record<string, { icon: React.ReactNode; label: string }> = {
   furnished: { icon: <Sofa className="h-5 w-5" />,     label: 'Furnished' },
@@ -32,7 +48,7 @@ function formatDate(dateStr: string) {
   return `${parseInt(day)} ${MONTHS[parseInt(month) - 1]} ${year}`;
 }
 
-function isValidEmail(e: string) {
+function _isValidEmail(e: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 }
 
@@ -43,7 +59,7 @@ export default function PropertyDetailPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
-  const { property: firestoreProperty, loading: propLoading } = useFirestoreProperty(id);
+  const { property: firestoreProperty, loading: propLoading, error: propError } = useFirestoreProperty(id);
   const staticProperty = casaProperties.find((p) => p.id === id) ?? null;
   const property: CasaProperty | null = firestoreProperty ?? staticProperty;
 
@@ -51,15 +67,7 @@ export default function PropertyDetailPage() {
   const [saved, setSaved] = useState(false);
   const [shared, setShared] = useState(false);
 
-  // Form state
-  const [formName, setFormName]       = useState('');
-  const [formEmail, setFormEmail]     = useState('');
-  const [formPhone, setFormPhone]     = useState('');
-  const [formMoveIn, setFormMoveIn]   = useState('');
-  const [formMessage, setFormMessage] = useState('');
-  const [formErrors, setFormErrors]   = useState<FormErrors>({});
-  const [submitting, setSubmitting]   = useState(false);
-  const [formSent, setFormSent]       = useState(false);
+  const [waSent, setWaSent] = useState(false);
 
   // Mobile sticky bar visibility
   const formRef = useRef<HTMLDivElement>(null);
@@ -71,13 +79,6 @@ export default function PropertyDetailPage() {
     obs.observe(el);
     return () => obs.disconnect();
   }, [formRef.current]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (user) {
-      setFormName(user.displayName ?? '');   // eslint-disable-line react-hooks/set-state-in-effect
-      setFormEmail(user.email ?? '');        // eslint-disable-line react-hooks/set-state-in-effect
-    }
-  }, [user]);
 
   function handleShare() {
     const url = window.location.href;
@@ -95,55 +96,22 @@ export default function PropertyDetailPage() {
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function validate(): FormErrors {
-    const errs: FormErrors = {};
-    if (!formName.trim() || formName.trim().length < 2)
-      errs.name = 'Please enter your full name.';
-    if (!formEmail || !isValidEmail(formEmail))
-      errs.email = 'Please enter a valid email address.';
-    if (!formMessage.trim() || formMessage.trim().length < 10)
-      errs.message = 'Message must be at least 10 characters.';
-    return errs;
-  }
-
-  async function handleEnquiry(e: React.SyntheticEvent) {
-    e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
-      return;
-    }
-    setFormErrors({});
-    setSubmitting(true);
+  async function handleWhatsAppClick() {
+    if (!property) return;
     try {
-      const res = await fetch('/api/unistay/enquiry', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formName.trim(),
-          email: formEmail.trim(),
-          phone: formPhone.trim() || undefined,
-          moveIn: formMoveIn || undefined,
-          message: formMessage.trim(),
-          propertyId: id,
-          propertyTitle: property?.title ?? '',
-        }),
+      await addDoc(collection(db, 'enquiries'), {
+        name:          user?.displayName ?? 'WhatsApp visitor',
+        email:         user?.email ?? null,
+        message:       `Contacted via WhatsApp about "${property.title}"`,
+        propertyId:    id,
+        propertyTitle: property.title,
+        userId:        user?.uid ?? null,
+        channel:       'whatsapp',
+        status:        'new',
+        createdAt:     serverTimestamp(),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        if (data.errors) {
-          setFormErrors(data.errors);
-        } else {
-          setFormErrors({ _form: data.error ?? 'Something went wrong. Please try again.' });
-        }
-        return;
-      }
-      setFormSent(true);
-    } catch {
-      setFormErrors({ _form: 'Network error. Please check your connection and try again.' });
-    } finally {
-      setSubmitting(false);
-    }
+    } catch { /* non-blocking — WhatsApp still opens */ }
+    setWaSent(true);
   }
 
   /* ── Loading states ── */
@@ -180,7 +148,9 @@ export default function PropertyDetailPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 text-lg mb-4">Property not found.</p>
+          <p className="text-gray-500 text-lg mb-4">
+            {propError ? 'Could not load this property.' : 'Property not found.'}
+          </p>
           <Link href="/unistay/search" className="text-blue-600 hover:underline text-sm">← Back to search</Link>
         </div>
       </div>
@@ -296,6 +266,40 @@ export default function PropertyDetailPage() {
               <p className="text-gray-600 leading-relaxed">{property.description}</p>
             </div>
 
+            {property.coldRent !== undefined && (
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-3">Cost breakdown</h2>
+                <div className="rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                  <div className="flex justify-between items-center px-4 py-3 text-sm bg-white">
+                    <div>
+                      <span className="text-gray-800 font-medium">Kaltmiete</span>
+                      <span className="text-gray-400 ml-2 text-xs">cold rent</span>
+                    </div>
+                    <span className="font-medium text-gray-900">€{property.coldRent.toLocaleString()}<span className="text-gray-400 font-normal">/mo</span></span>
+                  </div>
+                  {property.utilityEstimate !== undefined && (
+                    <div className="flex justify-between items-center px-4 py-3 text-sm bg-white">
+                      <div>
+                        <span className="text-gray-800 font-medium">Nebenkosten</span>
+                        <span className="text-gray-400 ml-2 text-xs">utilities &amp; service charges</span>
+                      </div>
+                      <span className="font-medium text-gray-900">~€{property.utilityEstimate.toLocaleString()}<span className="text-gray-400 font-normal">/mo</span></span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center px-4 py-3 text-sm bg-gray-50">
+                    <div>
+                      <span className="font-semibold text-gray-900">Warmmiete</span>
+                      <span className="text-gray-400 ml-2 text-xs">total monthly rent</span>
+                    </div>
+                    <span className="font-bold text-blue-600 text-base">€{property.price.toLocaleString()}<span className="text-gray-400 font-normal text-sm">/mo</span></span>
+                  </div>
+                </div>
+                {property.utilityEstimate !== undefined && !billsIncluded && (
+                  <p className="text-xs text-gray-400 mt-2">Utility costs are estimates based on typical usage. Actual amounts may vary.</p>
+                )}
+              </div>
+            )}
+
             {property.features.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 mb-3">What&apos;s included</h2>
@@ -337,134 +341,77 @@ export default function PropertyDetailPage() {
               </div>
             </Card>
 
-            {/* Enquiry form */}
+            {/* Contact card */}
             <Card className="p-5" ref={formRef}>
-              <h3 className="font-semibold text-gray-900 mb-4">Contact Casa</h3>
+              <h3 className="font-semibold text-gray-900 mb-1">Interested in this property?</h3>
+              <p className="text-sm text-gray-400 mb-5">Chat with Casa on WhatsApp — we reply within a few hours.</p>
 
               {authLoading ? (
-                <div className="flex items-center justify-center py-8 gap-2 text-sm text-gray-400">
+                <div className="flex items-center justify-center py-6 gap-2 text-sm text-gray-400">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading…
-                </div>
-              ) : !user ? (
-                <div className="text-center py-6">
-                  <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Lock className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <p className="font-semibold text-gray-900 mb-1">Sign in to send an enquiry</p>
-                  <p className="text-sm text-gray-500 mb-4">Create a free account to contact Casa about this property.</p>
-                  <Link href="/unistay/auth">
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white mb-2">Sign in</Button>
-                  </Link>
-                  <Link href="/unistay/register">
-                    <Button variant="outline" className="w-full border-gray-300 text-gray-700 hover:border-blue-400">Create free account</Button>
-                  </Link>
-                </div>
-              ) : formSent ? (
-                <div className="text-center py-6">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <CheckCircle2 className="h-6 w-6 text-green-600" />
-                  </div>
-                  <p className="font-semibold text-gray-900 mb-1">Thanks {formName.split(' ')[0]}!</p>
-                  <p className="text-sm text-gray-500">
-                    We&apos;ll be in touch within 24 hours about{' '}
-                    <span className="font-medium">{property.title}</span>. Check your email for a confirmation.
-                  </p>
                 </div>
               ) : (
-                <form onSubmit={handleEnquiry} className="space-y-4" noValidate>
-                  {formErrors._form && (
-                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                      {formErrors._form}
-                    </div>
+                <>
+                  <a
+                    href={`https://wa.me/${CASA_WHATSAPP}?text=${encodeURIComponent(`Hi! I'm interested in "${property.title}" in ${property.city} (€${property.price}/mo). Can you tell me more about availability?`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={handleWhatsAppClick}
+                    className="w-full flex items-center justify-center gap-2.5 bg-[#25D366] hover:bg-[#1ebe5d] text-white font-semibold py-3.5 rounded-xl transition-colors mb-3 text-sm"
+                  >
+                    <WhatsAppIcon />
+                    Chat on WhatsApp
+                  </a>
+
+                  <a
+                    href={`mailto:${CASA_EMAIL}?subject=${encodeURIComponent(`Enquiry: ${property.title}`)}&body=${encodeURIComponent(`Hi Casa,\n\nI'm interested in ${property.title} in ${property.city}.\n\nCould you share more details about availability and viewing?\n\nThanks`)}`}
+                    className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 font-medium py-3 rounded-xl transition-colors text-sm"
+                  >
+                    <Mail className="h-4 w-4" />
+                    Send an email instead
+                  </a>
+
+                  {waSent && (
+                    <p className="text-xs text-green-600 text-center mt-3">Opening WhatsApp…</p>
                   )}
-
-                  <div>
-                    <FieldLabel>Your name</FieldLabel>
-                    <SoftInput
-                      type="text"
-                      value={formName}
-                      onChange={(e) => { setFormName(e.target.value); setFormErrors((p) => ({ ...p, name: undefined })); }}
-                      placeholder="Jane Smith"
-                      error={formErrors.name}
-                    />
-                  </div>
-
-                  <div>
-                    <FieldLabel>Email</FieldLabel>
-                    <SoftInput
-                      icon={Mail}
-                      type="email"
-                      value={formEmail}
-                      onChange={(e) => { setFormEmail(e.target.value); setFormErrors((p) => ({ ...p, email: undefined })); }}
-                      placeholder="you@example.com"
-                      error={formErrors.email}
-                    />
-                  </div>
-
-                  <div>
-                    <FieldLabel>Phone <span className="normal-case font-normal text-gray-300">(optional)</span></FieldLabel>
-                    <SoftInput
-                      icon={Phone}
-                      type="tel"
-                      value={formPhone}
-                      onChange={(e) => setFormPhone(e.target.value)}
-                      placeholder="+49 ..."
-                    />
-                  </div>
-
-                  <div>
-                    <FieldLabel>Intended move-in date <span className="normal-case font-normal text-gray-300">(optional)</span></FieldLabel>
-                    <SoftInput
-                      type="date"
-                      value={formMoveIn}
-                      onChange={(e) => setFormMoveIn(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
-                    />
-                  </div>
-
-                  <div>
-                    <FieldLabel>Message</FieldLabel>
-                    <SoftTextarea
-                      value={formMessage}
-                      onChange={(e) => { setFormMessage(e.target.value); setFormErrors((p) => ({ ...p, message: undefined })); }}
-                      rows={3}
-                      placeholder={`Hi, I am interested in ${property.title}…`}
-                      error={formErrors.message}
-                    />
-                  </div>
-
-                  <PrimaryBtn type="submit" disabled={submitting} className="w-full">
-                    {submitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Sending…
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4" />
-                        Send Enquiry
-                      </>
-                    )}
-                  </PrimaryBtn>
-                  <p className="text-xs text-gray-300 text-center">We typically reply within 24 hours</p>
-                </form>
+                </>
               )}
             </Card>
           </div>
         </div>
+        {/* Location map */}
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Location</h2>
+          <p className="text-sm text-gray-500 mb-3 flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            {property.address}
+          </p>
+          <div className="h-64 sm:h-80 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+            <PropertyDetailMap
+              title={property.title}
+              address={property.address}
+              city={property.city}
+              lat={property.lat}
+              lng={property.lng}
+            />
+          </div>
+        </div>
+
       </div>
 
-      {/* Mobile sticky enquiry bar — hidden once form is in view */}
-      {!formVisible && !formSent && user && (
+      {/* Mobile sticky WhatsApp bar — hidden once contact card is in view */}
+      {!formVisible && property && (
         <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-white border-t border-gray-200 px-4 py-3 shadow-lg">
-          <button
-            onClick={scrollToForm}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+          <a
+            href={`https://wa.me/${CASA_WHATSAPP}?text=${encodeURIComponent(`Hi! I'm interested in "${property.title}" in ${property.city} (€${property.price}/mo). Can you tell me more?`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleWhatsAppClick}
+            className="w-full flex items-center justify-center gap-2.5 bg-[#25D366] hover:bg-[#1ebe5d] text-white font-semibold py-3 rounded-xl transition-colors text-sm"
           >
-            <Send className="h-4 w-4" />
-            Enquire about this property
-          </button>
+            <WhatsAppIcon />
+            Chat on WhatsApp
+          </a>
         </div>
       )}
     </div>

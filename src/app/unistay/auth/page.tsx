@@ -5,7 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
-import { auth, googleProvider } from '@/lib/unistay/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db, googleProvider } from '@/lib/unistay/firebase';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 
 export default function SignInPage() {
@@ -36,8 +37,10 @@ export default function SignInPage() {
     setError('');
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push('/unistay/profile');
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const snap = await getDoc(doc(db, 'users', cred.user.uid));
+      const hasProfile = snap.exists() && !!(snap.data()?.university);
+      router.push(hasProfile ? '/unistay/profile' : '/unistay/register');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
       if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
@@ -56,8 +59,22 @@ export default function SignInPage() {
     setError('');
     setLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
-      router.push('/unistay/profile');
+      const cred = await signInWithPopup(auth, googleProvider);
+      const { uid, displayName, email: gEmail } = cred.user;
+      const userRef = doc(db, 'users', uid);
+      const snap = await getDoc(userRef);
+      const hasProfile = snap.exists() && !!(snap.data()?.university);
+      if (!snap.exists()) {
+        await setDoc(userRef, {
+          name:              displayName ?? '',
+          email:             gEmail ?? '',
+          role:              'user',
+          documents:         {},
+          createdAt:         new Date().toISOString(),
+          applicationStatus: 'pending',
+        });
+      }
+      router.push(hasProfile ? '/unistay/profile' : '/unistay/register');
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? '';
       if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {

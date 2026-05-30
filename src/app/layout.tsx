@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Navbar from "@/components/Navbar/Navbar";
 import Footer from "@/components/Footer/Footer";
 import { AuthProvider } from "@/lib/unistay/auth-context";
+import AdminShellCheck from "@/components/unistay/AdminShellCheck";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,9 +22,13 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AuthProvider>
-          <Navbar />
+          <AdminShellCheck>
+            <Navbar />
+          </AdminShellCheck>
           <main style={{ flex: 1 }}>{children}</main>
-          <Footer />
+          <AdminShellCheck>
+            <Footer />
+          </AdminShellCheck>
         </AuthProvider>
       </body>
     </html>
